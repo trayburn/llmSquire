@@ -12,14 +12,21 @@ import json
 import re
 
 # A skill prompt we'll evaluate — extracts action items as JSON
-ACTION_ITEM_SKILL = """You are an action item extractor.
+ACTION_ITEM_SKILL = """## Role
+You are an action item extractor.
+
+## Task
 Extract action items from meeting notes.
-Input is meeting notes as plain text.
-Output must be valid JSON. Each action item is an object with:
+
+## Context
+The input is meeting notes as plain text.
+
+## Constraints
+- Output must be valid JSON. Each action item is an object with:
   - task: string describing the action
   - owner: string name of the person responsible
   - deadline: string deadline or null
-Return a JSON array of action items. No other text."""
+- Return a JSON array of action items and no other text."""
 
 SAMPLE_MEETING = """Meeting: We discussed the product launch.
 Alice will send the marketing email by Friday.

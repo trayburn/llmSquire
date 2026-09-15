@@ -15,8 +15,19 @@
 from llmsquire import Koan, llm
 
 
-# A poorly-structured prompt — no RTCC, just a vague request
-WEAK_PROMPT = "Help me extract action items from meeting notes."
+# A deliberately incomplete RTCC prompt — it has headings but omits the
+# specificity that makes a skill reliable.
+WEAK_PROMPT = """## Role
+You help with meeting notes.
+
+## Task
+Extract action items.
+
+## Context
+The input contains meeting notes.
+
+## Constraints
+- Use a helpful format."""
 
 
 class AboutSkillsRtcc(Koan):
@@ -38,7 +49,17 @@ class AboutSkillsRtcc(Koan):
         # A clear role shapes the model's behavior and output style.
         response = llm.ask(
             messages=[
-                {"role": "system", "content": "You are an action item extractor. You identify tasks, owners, and deadlines from meeting notes."},
+                {"role": "system", "content": """## Role
+You are an action item extractor.
+
+## Task
+Identify tasks, owners, and deadlines from meeting notes.
+
+## Context
+The input is meeting notes as plain text.
+
+## Constraints
+- Focus only on action items stated in the notes."""},
                 # Write a system prompt that defines the role:
                 # "You are an action item extractor. You identify tasks, owners, and deadlines from meeting notes."
                 {"role": "user", "content": "Meeting: We discussed the launch. Alice will send the email by Friday. Bob needs to update the docs."}
@@ -52,10 +73,19 @@ class AboutSkillsRtcc(Koan):
         # Constraints make output predictable and testable.
         response = llm.ask(
             messages=[
-                {"role": "system", "content": """You are an action item extractor.
+                {"role": "system", "content": """## Role
+You are an action item extractor.
+
+## Task
 Extract action items from meeting notes.
-Input is meeting notes as plain text.
-Output must be valid JSON. Each action item has: task (string), owner (string), deadline (string or null). Return a JSON array and no other text."""},
+
+## Context
+The input is meeting notes as plain text.
+
+## Constraints
+- Output valid JSON only.
+- Return a JSON array.
+- Each action item has task (string), owner (string), and deadline (string or null)."""},
                 # Write a COMPLETE RTCC skill:
                 # Role: "You are an action item extractor."
                 # Task: "Extract action items from meeting notes."
@@ -91,10 +121,19 @@ Output must be valid JSON. Each action item has: task (string), owner (string), 
         # Fill in the system prompt with full RTCC structure.
         response = llm.ask(
             messages=[
-                {"role": "system", "content": """You are a technical summarizer.
+                {"role": "system", "content": """## Role
+You are a technical summarizer.
+
+## Task
 Summarize technical articles in exactly 3 bullet points.
-Input is a technical article as plain text.
-Output exactly 3 bullet points, each starting with '- '. Each bullet point must be one sentence. No introduction or conclusion."""},
+
+## Context
+The input is a technical article as plain text.
+
+## Constraints
+- Output exactly 3 bullet points, each starting with '- '.
+- Each bullet point must be one sentence.
+- Include no introduction or conclusion."""},
                 # Write the full RTCC skill here:
                 # Role: "You are a technical summarizer."
                 # Task: "Summarize technical articles in exactly 3 bullet points."
@@ -109,3 +148,54 @@ Output exactly 3 bullet points, each starting with '- '. Each bullet point must 
         # And should be relatively short (3 bullet points)
         lines = [l for l in response.content.strip().split("\n") if l.strip().startswith("-")]
         self.assert_true(len(lines) >= 2, f"Expected 2+ bullet points, got {len(lines)}")
+
+    def test_skill_md_metadata_pattern(self):
+        # SKILL.md metadata is the industry-standard progressive-disclosure pattern:
+        # the initial system prompt contains only name, description, and trigger.
+        # The model uses that metadata to identify a relevant skill; the harness then
+        # loads the full RTCC body only when the skill is needed.
+        skill_metadata = """name: action-item-extractor
+description: Extract action items from meeting notes as structured JSON.
+trigger: Use when processing meeting notes to identify tasks, owners, and deadlines."""
+        # Use exactly:
+        # """name: action-item-extractor
+        # description: Extract action items from meeting notes as structured JSON.
+        # trigger: Use when processing meeting notes to identify tasks, owners, and deadlines."""
+
+        skill_body = """## Role
+You are an action item extractor.
+
+## Task
+Extract action items from meeting notes.
+
+## Context
+The input is meeting notes as plain text.
+
+## Constraints
+- Output valid JSON only.
+- Return a JSON array.
+- Each action item has task (string), owner (string), and deadline (string or null)."""
+        # Write the full RTCC body separately. It should define:
+        # Role: action item extractor
+        # Task: extract action items from meeting notes
+        # Context: plain-text meeting notes
+        # Constraints: valid JSON array only; each item has task, owner, and deadline
+
+        response = llm.ask(
+            messages=[
+                {"role": "system", "content": skill_metadata},
+                {"role": "system", "content": skill_body},
+                {"role": "user", "content": "Meeting: Alice will send the launch email by Friday. Bob needs to update the API docs."}
+            ]
+        )
+        # The metadata describes when to load the skill; the separately loaded body
+        # supplies the instructions that make the output deterministic and testable.
+        import json
+        content = response.content
+        if "```json" in content:
+            content = content.split("```json")[1].split("```")[0].strip()
+        elif "```" in content:
+            content = content.split("```")[1].split("```")[0].strip()
+        data = json.loads(content)
+        self.assert_true(isinstance(data, list))
+        self.assert_true(len(data) >= 2)

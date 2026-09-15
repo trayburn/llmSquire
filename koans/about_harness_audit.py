@@ -14,18 +14,43 @@ import json
 from llmsquire import Koan, llm
 
 # Skills (same as Koans 15-16)
-RESEARCH_SKILL = """You are a research analyst.
+RESEARCH_SKILL = """## Role
+You are a research analyst.
+
+## Task
 Extract 3 key findings from the provided text.
-Output each finding as a line starting with "Finding: ".
-Base findings only on the provided text."""
 
-SUMMARIZE_SKILL = """You are a summarizer.
+## Context
+The input is source text to analyze.
+
+## Constraints
+- Output each finding as a line starting with "Finding: ".
+- Base findings only on the provided text."""
+
+SUMMARIZE_SKILL = """## Role
+You are a summarizer.
+
+## Task
 Given a list of findings, produce a 2-sentence summary.
-Output only the summary text, no introduction."""
 
-EMAIL_SKILL = """You are an email writer.
+## Context
+The input is a list of research findings.
+
+## Constraints
+- Output only the summary text, with no introduction."""
+
+EMAIL_SKILL = """## Role
+You are an email writer.
+
+## Task
 Given a summary, draft a professional email report.
-Include a subject line starting with "Subject: "."""
+
+## Context
+The input is a summary of research findings.
+
+## Constraints
+- Include a subject line starting with "Subject: ".
+- Include a greeting, the summary, and a closing."""
 
 
 class AboutHarnessAudit(Koan):

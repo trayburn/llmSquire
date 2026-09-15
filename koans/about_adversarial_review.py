@@ -15,28 +15,51 @@
 from llmsquire import Koan, llm
 
 # A producing agent (the one whose output we review)
-PRODUCER_SKILL = """You are a research analyst.
+PRODUCER_SKILL = """## Role
+You are a research analyst.
+
+## Task
 Extract key findings from the provided text.
-Output each finding as a line starting with "Finding: ".
-Include source citations when available."""
+
+## Context
+The input is research text that may include source information.
+
+## Constraints
+- Output each finding as a line starting with "Finding: ".
+- Include source citations when available."""
 
 # An adversarial reviewer — note the DISTINCT perspective and adversarial posture
-ADVERSARIAL_REVIEWER_SKILL = """You are a fact-checking adversarial reviewer.
-Your job is to FIND PROBLEMS in the research output, not confirm its quality.
-Specifically, check for:
-1. Factual claims made WITHOUT any source or evidence
-2. Overgeneralizations (broad claims from limited data)
-3. Missing context that would change the interpretation
-Output a list of problems found. If no problems, output "No issues found."
-Be skeptical. You are trying to find what went wrong, not validate what went right."""
+ADVERSARIAL_REVIEWER_SKILL = """## Role
+You are a fact-checking adversarial reviewer.
+
+## Task
+FIND PROBLEMS in the research output rather than confirm its quality.
+
+## Context
+The input contains research output and, when available, the original source text.
+
+## Constraints
+- Check for factual claims made WITHOUT any source or evidence.
+- Check for overgeneralizations: broad claims from limited data.
+- Check for missing context that would change the interpretation.
+- Output a list of problems found; if no problems, output "No issues found."
+- Be skeptical: find what went wrong, not what went right."""
 
 # A "verification" agent (NOT adversarial — just re-checks the same criteria)
-VERIFICATION_SKILL = """You are a research quality verifier.
-Check if the research output:
-1. Contains findings
-2. Is formatted correctly
-3. Covers the main points
-Output "PASS" if all checks pass, "FAIL" with reasons otherwise."""
+VERIFICATION_SKILL = """## Role
+You are a research quality verifier.
+
+## Task
+Check whether the research output meets the listed quality criteria.
+
+## Context
+The input is research output to verify.
+
+## Constraints
+- Check whether it contains findings.
+- Check whether it is formatted correctly.
+- Check whether it covers the main points.
+- Output "PASS" if all checks pass, or "FAIL" with reasons otherwise."""
 
 
 SAMPLE_TEXT = """A 2023 study by Gartner found that 80% of enterprises have adopted AI in some form.

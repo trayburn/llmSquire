@@ -19,12 +19,29 @@ import json
 # This skill reads three project files and produces a status summary.
 # It's deliberately weak at first — you will improve it through EDD.
 
-WEAK_SKILL_PROMPT = """Summarize the project status."""
+WEAK_SKILL_PROMPT = """## Role
+You help with project status.
 
-STRONG_SKILL_PROMPT = """You are a project status summarizer.
+## Task
+Summarize the project status.
+
+## Context
+The input may include project files.
+
+## Constraints
+- Provide a useful response."""
+
+STRONG_SKILL_PROMPT = """## Role
+You are a project status summarizer.
+
+## Task
 Given the contents of three project files, produce a structured status summary.
 
-Output must be valid JSON with these fields:
+## Context
+The input contains the contents of project files.
+
+## Constraints
+- Output must be valid JSON with these fields:
   - project_name: string
   - deadline: string
   - team_members: array of strings
@@ -32,7 +49,8 @@ Output must be valid JSON with these fields:
   - status: string (one of: "on_track", "at_risk", "delayed")
   - key_risks: array of strings
 
-Base your analysis ONLY on the file contents provided. Do not invent information."""
+- Base your analysis ONLY on the file contents provided.
+- Do not invent information."""
 
 # --- Synthetic Context (from Koan 8) ---
 # Instead of putting files on disk, we pre-populate the context window
