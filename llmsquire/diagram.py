@@ -162,7 +162,30 @@ def render(trace: Sequence[InteractionRecord]) -> str:
             call_sections,
         ))
 
-        # --- Tool calls (from tool_executions OR inferred from next record) ---
+        # --- API response arrow (LLM → Learner) ---
+        # The response comes FIRST — it contains the tool_call REQUEST.
+        # The harness can only execute the tool AFTER seeing this response.
+        detail_id += 1
+        resp_id = f"detail-{detail_id}"
+        latency = record.latency_ms
+        token_info = f"{record.input_tokens} in · {record.output_tokens} out · {cumulative_tokens} cumulative"
+        arrows_html.append(
+            f'<div class="arrow-row arrow-llm-learner" data-detail="{resp_id}">'
+            f'<div class="arrow-label">API response · round {index}</div>'
+            f'<div class="arrow-line arrow-left arrow-green" data-detail="{resp_id}"></div>'
+            f'<div class="arrow-meta">{latency:.1f} ms · {token_info}</div>'
+            f'</div>'
+        )
+        details_html.append(_detail_panel(
+            resp_id,
+            f"API response · round {index}",
+            f"LLM → Learner / Koan · {latency:.1f} ms latency · {token_info}",
+            [("Exact response payload", record.response)],
+        ))
+
+        # --- Tool executions (after response, before next API call) ---
+        # The LLM requested tool calls in its response. The HARNESS executes
+        # them and sends results back in the next API call.
         next_record = trace_list[index] if index < len(trace_list) else None
         executions = _infer_tool_executions(record, next_record)
 
@@ -210,25 +233,6 @@ def render(trace: Sequence[InteractionRecord]) -> str:
                 f"Tools → Koan / Harness · {duration_label}",
                 [("Return value", result)],
             ))
-
-        # --- API response arrow (LLM → Learner) ---
-        detail_id += 1
-        resp_id = f"detail-{detail_id}"
-        latency = record.latency_ms
-        token_info = f"{record.input_tokens} in · {record.output_tokens} out · {cumulative_tokens} cumulative"
-        arrows_html.append(
-            f'<div class="arrow-row arrow-llm-learner" data-detail="{resp_id}">'
-            f'<div class="arrow-label">API response · round {index}</div>'
-            f'<div class="arrow-line arrow-left arrow-green" data-detail="{resp_id}"></div>'
-            f'<div class="arrow-meta">{latency:.1f} ms · {token_info}</div>'
-            f'</div>'
-        )
-        details_html.append(_detail_panel(
-            resp_id,
-            f"API response · round {index}",
-            f"LLM → Learner / Koan · {latency:.1f} ms latency · {token_info}",
-            [("Exact response payload", record.response)],
-        ))
 
     arrows = "\n".join(arrows_html)
     details = "\n".join(details_html)

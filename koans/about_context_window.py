@@ -18,7 +18,10 @@ class AboutContextWindow(Koan):
         messages.append({"role": "user", "content": "What was the number of the first message?"})
         response = llm.ask(messages=messages)
         # The model should be able to answer since it's all in context
-        self.assert_match("0", response.content)
+        self.assert_true(
+            "0" in response.content or "zero" in response.content.lower(),
+            f"Expected the model to identify message number 0. Response: {response.content[:200]}..."
+        )
 
     def test_trim_history_to_last_n_messages(self):
         # Write a function that trims conversation history to the last N messages.

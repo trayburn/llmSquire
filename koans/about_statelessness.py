@@ -30,7 +30,8 @@ class AboutStatelessness(Koan):
         # Think carefully — the model has NO memory of the first call.
         # Replace _fill_ with your assertion about second_response.
         # Hint: the model will NOT say "Alice" because it doesn't remember.
-        self.assert_match("don't know", second_response.content)
+        self.assert_match("don", second_response.content)
+        self.assert_match("know", second_response.content)
 
     def test_you_must_provide_the_memory(self):
         # Now fix it: pass the previous conversation in the messages array

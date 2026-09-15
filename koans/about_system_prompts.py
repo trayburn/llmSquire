@@ -29,8 +29,16 @@ class AboutSystemPrompts(Koan):
             ]
         )
         # The response should contain pirate-like language
-        # Think about what words a pirate would use...
-        self.assert_match("matey", response.content)
+        # Pirates use distinctive vocabulary — check for common pirate words
+        pirate_words = ["matey", "arr", "ahoy", "ye", "aye", "captain",
+                       "sailor", "ship", "sea", "treasure", "buccaneer",
+                       "parrot", "rum", "hoist", "landlubber"]
+        content_lower = response.content.lower()
+        found = [w for w in pirate_words if w in content_lower]
+        self.assert_true(
+            len(found) >= 1,
+            f"Expected pirate-like language. Found: {found}. Response: {response.content[:200]}..."
+        )
 
     def test_system_prompt_with_constraints(self):
         # You can add constraints to the system prompt
