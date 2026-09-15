@@ -36,7 +36,7 @@ def test_render_empty_trace_is_complete_dark_html_document():
     html = render([])
 
     assert "<!doctype html>" in html.lower()
-    assert "Learner / Koan" in html
+    assert "Learner / Koan / Harness" in html
     assert "LLM" in html
     assert "Tools" in html
     assert "No LLM interactions were recorded" in html
@@ -51,7 +51,7 @@ def test_render_shows_payloads_context_timing_tokens_and_tool_round_trip():
     assert "API call" in html
     assert "API response" in html
     assert "read_file" in html
-    assert "Tool call" in html
+    assert "Harness executes" in html
     assert "Tool result" in html
     assert "Context window · 1 message" in html
     assert "125.5 ms" in html
@@ -67,8 +67,8 @@ def test_render_shows_payloads_context_timing_tokens_and_tool_round_trip():
     for lane in (
         "arrow-learner-llm",
         "arrow-llm-learner",
-        "arrow-llm-tools",
-        "arrow-tools-llm",
+        "arrow-harness-tools",
+        "arrow-tools-harness",
     ):
         assert lane in html
 

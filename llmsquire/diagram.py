@@ -24,12 +24,91 @@ def _json(value: Any) -> str:
     return json.dumps(value, indent=2, ensure_ascii=False, default=str, sort_keys=True)
 
 
+def _infer_tool_executions(record: InteractionRecord, next_record: InteractionRecord | None) -> list[dict]:
+    """Reconstruct tool executions from consecutive trace entries.
+
+    When a student uses llm.ask() manually (not converse()), the trace
+    records the tool_calls in the response but does NOT populate
+    tool_executions — the student executed the tools themselves and
+    sent the results back in the next ask() call.
+
+    We infer what happened by matching tool_call IDs from the response
+    against 'tool' role messages in the next request's messages array.
+    """
+    if record.tool_executions:
+        return record.tool_executions
+
+    tool_calls = record.response.get("tool_calls", [])
+    if not tool_calls:
+        return []
+
+    if next_record is None:
+        # No next record — the tool was called but we never saw the result
+        # sent back. Still show the tool call arrows, just without result content.
+        return [
+            {"name": tc.get("name", "unknown"), "arguments": tc.get("arguments", ""),
+             "result": "(result sent in next API call)", "execution_ms": 0.0,
+             "tool_call_id": tc.get("id", "")}
+            for tc in tool_calls
+        ]
+
+    # Build a map of tool_call_id → tool result from the next request's messages
+    next_messages = next_record.request.get("messages", [])
+    if not isinstance(next_messages, list):
+        next_messages = []
+    tool_results: dict[str, str] = {}
+    for msg in next_messages:
+        if isinstance(msg, dict) and msg.get("role") == "tool":
+            tc_id = msg.get("tool_call_id", "")
+            tool_results[tc_id] = msg.get("content", "")
+
+    executions = []
+    for tc in tool_calls:
+        tc_id = tc.get("id", "")
+        name = tc.get("name", "unknown")
+        args = tc.get("arguments", "")
+        # Try to parse arguments as JSON for cleaner display
+        if isinstance(args, str):
+            try:
+                import json as _json
+                args = _json.loads(args)
+            except (ValueError, TypeError):
+                pass
+        result = tool_results.get(tc_id, "(result not found in next request)")
+        executions.append({
+            "name": name,
+            "arguments": args,
+            "result": result,
+            "execution_ms": 0.0,
+            "tool_call_id": tc_id,
+        })
+    return executions
+
+
+def _extract_skill(messages: list) -> str | None:
+    """Extract the system prompt (skill) from messages, if present."""
+    if not isinstance(messages, list):
+        return None
+    for msg in messages:
+        if isinstance(msg, dict) and msg.get("role") == "system":
+            content = msg.get("content", "")
+            if content:
+                # Truncate for the badge display
+                snippet = content.strip().split("\n")[0][:60]
+                return snippet
+    return None
+
+
 def render(trace: Sequence[InteractionRecord]) -> str:
     """Return a complete, offline HTML sequence diagram for *trace*.
 
     The diagram has two parts:
     1. A visual overview with three vertical lifelines and arrows between them
     2. An interactive detail panel that opens when you click any arrow
+
+    Tool calls are captured from two sources:
+    - record.tool_executions (populated by converse())
+    - inferred from consecutive ask() calls (manual tool loops)
     """
     if not trace:
         return _skeleton('<p class="empty">No LLM interactions were recorded for this exercise.</p>', "", "")
@@ -41,7 +120,8 @@ def render(trace: Sequence[InteractionRecord]) -> str:
     previous_timestamp: float | None = None
     detail_id = 0
 
-    for index, record in enumerate(trace, start=1):
+    trace_list = list(trace)
+    for index, record in enumerate(trace_list, start=1):
         elapsed = "first step"
         if previous_timestamp is not None:
             elapsed_ms = (record.timestamp - previous_timestamp) * 1000
@@ -52,64 +132,82 @@ def render(trace: Sequence[InteractionRecord]) -> str:
         messages = record.request.get("messages", [])
         message_count = len(messages) if isinstance(messages, list) else 0
 
+        # Detect skill (system prompt) in this request
+        skill_snippet = _extract_skill(messages)
+
         # --- API call arrow (Learner → LLM) ---
         detail_id += 1
         call_id = f"detail-{detail_id}"
+        skill_badge = ""
+        if skill_snippet:
+            skill_badge = f' <span class="skill-badge" title="{escape(skill_snippet)}">🛡 Skill</span>'
         arrows_html.append(
             f'<div class="arrow-row arrow-learner-llm" data-detail="{call_id}">'
-            f'<div class="arrow-label">API call · round {index}</div>'
+            f'<div class="arrow-label">API call · round {index}{skill_badge}</div>'
             f'<div class="arrow-line arrow-right" data-detail="{call_id}"></div>'
             f'<div class="arrow-meta">{elapsed}</div>'
             f'</div>'
+        )
+        # Build sections for the detail panel, adding skill info if present
+        call_sections: list[tuple[str, Any]] = [("Exact request payload", record.request)]
+        if skill_snippet:
+            call_sections.append(("Skill / System prompt", skill_snippet))
+        call_sections.append(
+            (f"Context window · {message_count} message{'s' if message_count != 1 else ''}", messages),
         )
         details_html.append(_detail_panel(
             call_id,
             f"API call · round {index}",
             f"Learner / Koan → LLM · {elapsed}",
-            [
-                ("Exact request payload", record.request),
-                (f"Context window · {message_count} message{'s' if message_count != 1 else ''}", messages),
-            ],
+            call_sections,
         ))
 
-        # --- Tool calls (if any) ---
-        for execution in record.tool_executions:
+        # --- Tool calls (from tool_executions OR inferred from next record) ---
+        next_record = trace_list[index] if index < len(trace_list) else None
+        executions = _infer_tool_executions(record, next_record)
+
+        for execution in executions:
             name = str(execution.get("name", "unknown tool"))
             args = execution.get("arguments", {})
             result = execution.get("result", "")
             duration = float(execution.get("execution_ms", 0) or 0)
+            tc_id = execution.get("tool_call_id", "")
 
-            # Tool call arrow (LLM → Tools)
+            duration_label = f"{duration:.1f} ms execution" if duration > 0 else "executed by harness"
+
+            # Tool execution arrow (Harness → Tools) — full width, bypassing LLM.
+            # The LLM REQUESTS the tool call, but the HARNESS executes it.
+            # The arrow spans from Learner/Harness to Tools, not from LLM to Tools.
             detail_id += 1
-            tc_id = f"detail-{detail_id}"
+            tc_dom_id = f"detail-{detail_id}"
             arrows_html.append(
-                f'<div class="arrow-row arrow-llm-tools" data-detail="{tc_id}">'
-                f'<div class="arrow-label">Tool call · {escape(name)}</div>'
-                f'<div class="arrow-line arrow-right arrow-purple" data-detail="{tc_id}"></div>'
-                f'<div class="arrow-meta">{duration:.1f} ms execution</div>'
+                f'<div class="arrow-row arrow-harness-tools" data-detail="{tc_dom_id}">'
+                f'<div class="arrow-label">Harness executes · {escape(name)}</div>'
+                f'<div class="arrow-line arrow-right arrow-purple" data-detail="{tc_dom_id}"></div>'
+                f'<div class="arrow-meta">{duration_label}</div>'
                 f'</div>'
             )
             details_html.append(_detail_panel(
-                tc_id,
-                f"Tool call · {name}",
-                f"LLM → Tools · {duration:.1f} ms execution",
+                tc_dom_id,
+                f"Harness executes tool · {name}",
+                f"Koan / Harness → Tools · {duration_label}",
                 [("Arguments", args)],
             ))
 
-            # Tool result arrow (Tools → LLM)
+            # Tool result arrow (Tools → Harness) — full width, bypassing LLM.
             detail_id += 1
-            tr_id = f"detail-{detail_id}"
+            tr_dom_id = f"detail-{detail_id}"
             arrows_html.append(
-                f'<div class="arrow-row arrow-tools-llm" data-detail="{tr_id}">'
+                f'<div class="arrow-row arrow-tools-harness" data-detail="{tr_dom_id}">'
                 f'<div class="arrow-label">Tool result · {escape(name)}</div>'
-                f'<div class="arrow-line arrow-left arrow-green" data-detail="{tr_id}"></div>'
-                f'<div class="arrow-meta">{duration:.1f} ms execution</div>'
+                f'<div class="arrow-line arrow-left arrow-green" data-detail="{tr_dom_id}"></div>'
+                f'<div class="arrow-meta">{duration_label}</div>'
                 f'</div>'
             )
             details_html.append(_detail_panel(
-                tr_id,
+                tr_dom_id,
                 f"Tool result · {name}",
-                f"Tools → LLM · {duration:.1f} ms execution",
+                f"Tools → Koan / Harness · {duration_label}",
                 [("Return value", result)],
             ))
 
@@ -213,7 +311,7 @@ h1 {{ margin:0 0 6px; font-size:24px; }}
 }}
 .arrow-row:hover .arrow-line {{ opacity:0.7; }}
 
-/* Right-pointing arrows (Learner→LLM, LLM→Tools) */
+/* Right-pointing arrows (Learner→LLM, Harness→Tools) */
 .arrow-right {{
   background:var(--blue);
 }}
@@ -222,7 +320,7 @@ h1 {{ margin:0 0 6px; font-size:24px; }}
   border-left:10px solid var(--blue); border-top:7px solid transparent; border-bottom:7px solid transparent;
 }}
 
-/* Left-pointing arrows (LLM→Learner, Tools→LLM) */
+/* Left-pointing arrows (LLM→Learner, Tools→Harness) */
 .arrow-left {{
   background:var(--green);
 }}
@@ -249,12 +347,16 @@ h1 {{ margin:0 0 6px; font-size:24px; }}
 .arrow-llm-learner > .arrow-label,
 .arrow-llm-learner > .arrow-line,
 .arrow-llm-learner > .arrow-meta {{ left:16.67%; width:33.33%; }}
-.arrow-llm-tools > .arrow-label,
-.arrow-llm-tools > .arrow-line,
-.arrow-llm-tools > .arrow-meta,
-.arrow-tools-llm > .arrow-label,
-.arrow-tools-llm > .arrow-line,
-.arrow-tools-llm > .arrow-meta {{ left:50%; width:33.33%; }}
+
+/* Tool arrows span the FULL width — from Harness (left) to Tools (right).
+   They pass through the LLM lane but do not touch it. This visually
+   teaches that the harness mediates between LLM and Tools. */
+.arrow-harness-tools > .arrow-label,
+.arrow-harness-tools > .arrow-line,
+.arrow-harness-tools > .arrow-meta,
+.arrow-tools-harness > .arrow-label,
+.arrow-tools-harness > .arrow-line,
+.arrow-tools-harness > .arrow-meta {{ left:16.67%; width:66.67%; }}
 
 /* Labels above arrows */
 .arrow-label {{
@@ -295,6 +397,7 @@ pre.json {{
 }}
 .empty {{ border:1px dashed var(--border); border-radius:7px; padding:18px; color:var(--muted); text-align:center; }}
 .hint {{ color:var(--muted); font-size:12px; text-align:center; margin:8px 0 0; }}
+.skill-badge {{ display:inline-block; background:rgba(255,195,107,0.15); color:var(--orange); border:1px solid rgba(255,195,107,0.3); border-radius:4px; padding:1px 6px; font-size:10px; font-weight:normal; margin-left:6px; cursor:help; }}
 
 @media (max-width:650px) {{
   .lifeline-header {{ font-size:10px; padding:6px 4px; }}
@@ -308,7 +411,7 @@ pre.json {{
 {empty_html}
 <div class="diagram">
   <div class="lifeline-headers">
-    <div class="lifeline-header left">Learner / Koan</div>
+    <div class="lifeline-header left">Learner / Koan / Harness</div>
     <div class="lifeline-header center">LLM</div>
     <div class="lifeline-header right">Tools</div>
   </div>
