@@ -18,7 +18,7 @@ class AboutInvocation(Koan):
         # Call the model with a simple message
         response = llm.ask(
             messages=[
-                {"role": _fill_, "content": "Say hello in one word."}
+                {"role": "user", "content": "Say hello in one word."}
             ]
         )
         # The response should contain some text
@@ -28,7 +28,7 @@ class AboutInvocation(Koan):
         # The role of a user message is "user"
         response = llm.ask(
             messages=[
-                {"role": "user", "content": _fill_}
+                {"role": "user", "content": "Say hello in one word."}
             ]
         )
         # The model should respond with something
@@ -42,4 +42,4 @@ class AboutInvocation(Koan):
             ]
         )
         # Fill in what we expect to find in the response
-        self.assert_match(_fill_, response.content)
+        self.assert_match("4", response.content)

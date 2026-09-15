@@ -24,9 +24,9 @@ class AboutContextWindow(Koan):
         # Write a function that trims conversation history to the last N messages.
         # This is YOUR function — replace _fill_ with the implementation.
 
-        def trim_history(messages, n=_fill_):
+        def trim_history(messages, n=10):
             # Return only the last n messages
-            return _fill_
+            return messages[-n:]
 
         # Test it: create 10 messages, trim to last 3
         messages = [

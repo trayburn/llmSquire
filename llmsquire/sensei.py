@@ -71,8 +71,20 @@ class Sensei:
         """Run one test with lifecycle hooks and always render its trace."""
         koan = koan_class(test_name)
         failure: Optional[Exception] = None
+
+        # Inject _fill_ into the koan module's namespace so student code
+        # can use it without importing it.
+        module = importlib.import_module(koan_class.__module__)
+        if not hasattr(module, "_fill_"):
+            from llmsquire.koan import _fill_
+            module._fill_ = _fill_
+
         try:
             koan.setup()
+            # Wire the per-test LLM client into the module-level proxy
+            # so student code's `from llmsquire import llm` works.
+            from llmsquire.proxy import llm as llm_proxy
+            llm_proxy._client = koan.llm
             getattr(koan, test_name)()
         except Exception as error:
             failure = error

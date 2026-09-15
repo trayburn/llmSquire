@@ -33,7 +33,7 @@ fi
 echo "Writing .env file..."
 cat > "$ENV_FILE" << EOF
 # llmSquire — LLM API Configuration (Ollama Cloud)
-LLMSQUIRE_API_BASE=https://api.ollama.com/v1
+LLMSQUIRE_API_BASE=https://ollama.com/v1
 LLMSQUIRE_MODEL=deepseek-v4-flash:cloud
 LLMSQUIRE_API_KEY=$API_KEY
 EOF

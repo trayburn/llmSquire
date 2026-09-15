@@ -30,7 +30,7 @@ class AboutStatelessness(Koan):
         # Think carefully — the model has NO memory of the first call.
         # Replace _fill_ with your assertion about second_response.
         # Hint: the model will NOT say "Alice" because it doesn't remember.
-        self.assert_match(_fill_, second_response)
+        self.assert_match("don't know", second_response.content)
 
     def test_you_must_provide_the_memory(self):
         # Now fix it: pass the previous conversation in the messages array
@@ -43,10 +43,10 @@ class AboutStatelessness(Koan):
         # AND the new question.
         second_response = llm.ask(
             messages=[
-                _fill_,  # The original user message
-                _fill_,  # The assistant's first response (use first_response.content)
-                _fill_,  # The new question: "What is my name?"
+                first_message,  # The original user message
+                {"role": "assistant", "content": first_response.content},  # The assistant's first response (use first_response.content)
+                {"role": "user", "content": "What is my name?"},  # The new question: "What is my name?"
             ]
         )
         # Now the model should remember!
-        self.assert_match("Alice", second_response)
+        self.assert_match("Alice", second_response.content)
