@@ -91,7 +91,8 @@ class AboutRtcc(Koan):
         # A clear role is like a job title — it sets expectations.
         response = llm.ask(
             messages=[
-                {"role": "system", "content": _fill_},
+                {"role": "system", "content": """## Role
+You are a pirate. Speak like a pirate in all responses."""},
                 # Write a prompt with just the Role section:
                 # ## Role
                 # You are a pirate. Speak like a pirate in all responses.
@@ -116,7 +117,11 @@ class AboutRtcc(Koan):
         # "Extract action items from meeting notes" is a task.
         response = llm.ask(
             messages=[
-                {"role": "system", "content": _fill_},
+                {"role": "system", "content": """## Role
+You are an action item extractor.
+
+## Task
+Extract action items from meeting notes, identifying the task, the owner, and the deadline for each."""},
                 # Write a prompt with Role and Task sections:
                 # ## Role
                 # You are an action item extractor.
@@ -140,7 +145,15 @@ class AboutRtcc(Koan):
         # plain text" tells the model what format to expect.
         response = llm.ask(
             messages=[
-                {"role": "system", "content": _fill_},
+                {"role": "system", "content": """## Role
+You are a JSON formatter.
+
+## Task
+Convert the provided text into a JSON object with "summary" and "word_count" fields.
+
+## Context
+The input is a single paragraph of plain text.
+The word count is the number of whitespace-separated tokens."""},
                 # Write a prompt with Role, Task, and Context sections:
                 # ## Role
                 # You are a JSON formatter.
@@ -176,7 +189,20 @@ class AboutRtcc(Koan):
         # Every constraint is a potential test case.
         response = llm.ask(
             messages=[
-                {"role": "system", "content": _fill_},
+                {"role": "system", "content": """## Role
+You are a technical summarizer.
+
+## Task
+Summarize technical articles in bullet points.
+
+## Context
+The input is a technical article as plain text.
+
+## Constraints
+- Output exactly 3 bullet points.
+- Each bullet point starts with "- ".
+- Each bullet point is exactly one sentence.
+- No introduction or conclusion."""},
                 # Write a prompt with all 4 RTCC sections:
                 # ## Role
                 # You are a technical summarizer.
@@ -223,7 +249,7 @@ class AboutRtcc(Koan):
         # C) Reducing token count
         # D) Improving tool calling accuracy
 
-        answer = _fill_  # "A", "B", "C", or "D"
+        answer = "B"  # "A", "B", "C", or "D"
 
         self.assert_equal("B", answer)
 
@@ -246,6 +272,6 @@ class AboutRtcc(Koan):
         #
         # Replace _fill_ with the number of constraints in RTCC_PROMPT:
 
-        constraint_count = _fill_  # Count the ## Constraints items in RTCC_PROMPT
+        constraint_count = 3  # Count the ## Constraints items in RTCC_PROMPT
 
         self.assert_equal(3, constraint_count)

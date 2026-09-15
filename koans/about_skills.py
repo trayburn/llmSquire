@@ -290,7 +290,7 @@ class AboutSkills(Koan):
         #
         # Replace _fill_ with the number of prompt stages in a skill:
 
-        answer = _fill_  # How many prompts does a skill consist of?
+        answer = 2  # How many prompts does a skill consist of?
 
         self.assert_equal(2, answer)
 
@@ -316,7 +316,7 @@ class AboutSkills(Koan):
 
         # The savings: we load metadata + 1 body, not metadata + all bodies
         # Replace _fill_ with the number of characters saved:
-        characters_saved = _fill_
+        characters_saved = all_bodies_size - one_body_size
         # Calculate: all_bodies_size - one_body_size
 
         self.assert_true(
