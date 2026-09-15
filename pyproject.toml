@@ -7,7 +7,7 @@ name = "llmsquire"
 version = "0.1.0"
 description = "LLM Squire — Koans for mastering LLM invocation, harness creation, skills, and evaluation-driven development"
 readme = "README.md"
-license = {text = "MIT"}
+license = {text = "Proprietary — © 2026 Improving. All rights reserved."}
 requires-python = ">=3.9"
 dependencies = [
     "openai>=1.0",
