@@ -1,4 +1,12 @@
-"""Self-contained HTML sequence diagrams for recorded LLM interactions."""
+"""Self-contained HTML sequence diagrams for recorded LLM interactions.
+
+The diagram shows a clean visual overview with three vertical lifelines
+(Learner/Koan, LLM, Tools). Arrows between lifelines represent API calls,
+responses, tool calls, and tool results. Clicking any arrow opens a detail
+panel showing the exact payload, context window, timing, and token counts.
+
+All CSS and JS is inline — no external dependencies. Opens in any browser.
+"""
 from __future__ import annotations
 
 from datetime import datetime
@@ -16,105 +24,146 @@ def _json(value: Any) -> str:
     return json.dumps(value, indent=2, ensure_ascii=False, default=str, sort_keys=True)
 
 
-def _payload(title: str, value: Any) -> str:
-    return (
-        '<section class="payload">'
-        f"<h4>{escape(title)}</h4>"
-        f'<pre class="json">{escape(_json(value))}</pre>'
-        "</section>"
-    )
-
-
-def _event(kind: str, label: str, detail: str, payload: str = "") -> str:
-    return (
-        f'<article class="event {escape(kind)}">'
-        '<div class="arrow" aria-hidden="true"></div>'
-        '<div class="event-card">'
-        f'<h3>{escape(label)}</h3><p class="annotation">{escape(detail)}</p>{payload}'
-        "</div></article>"
-    )
-
-
-def _tool_events(executions: Iterable[dict[str, Any]]) -> str:
-    events = []
-    for execution in executions:
-        name = str(execution.get("name", "unknown tool"))
-        arguments = execution.get("arguments", {})
-        result = execution.get("result", "")
-        duration = float(execution.get("execution_ms", 0) or 0)
-        events.append(
-            _event(
-                "tool-call",
-                f"Tool call · {name}",
-                f"LLM → Tools · {duration:.1f} ms execution",
-                _payload("Arguments", arguments),
-            )
-        )
-        events.append(
-            _event(
-                "tool-result",
-                f"Tool result · {name}",
-                f"Tools → LLM · {duration:.1f} ms execution",
-                _payload("Return value", result),
-            )
-        )
-    return "".join(events)
-
-
 def render(trace: Sequence[InteractionRecord]) -> str:
     """Return a complete, offline HTML sequence diagram for *trace*.
 
-    Payloads are HTML-escaped before insertion so a model response or tool result
-    cannot alter the diagram document. Context panels use ``details`` so they are
-    expandable without relying on JavaScript.
+    The diagram has two parts:
+    1. A visual overview with three vertical lifelines and arrows between them
+    2. An interactive detail panel that opens when you click any arrow
     """
-    events: list[str] = []
+    if not trace:
+        return _skeleton('<p class="empty">No LLM interactions were recorded for this exercise.</p>', "", "")
+
+    # Build the arrow entries and detail panels
+    arrows_html: list[str] = []
+    details_html: list[str] = []
     cumulative_tokens = 0
     previous_timestamp: float | None = None
+    detail_id = 0
 
     for index, record in enumerate(trace, start=1):
         elapsed = "first step"
         if previous_timestamp is not None:
-            elapsed = f"{(record.timestamp - previous_timestamp) * 1000:.1f} ms since previous step"
+            elapsed_ms = (record.timestamp - previous_timestamp) * 1000
+            elapsed = f"{elapsed_ms:.1f} ms since previous step"
         previous_timestamp = record.timestamp
         cumulative_tokens += record.input_tokens + record.output_tokens
 
         messages = record.request.get("messages", [])
         message_count = len(messages) if isinstance(messages, list) else 0
-        context = (
-            '<details class="context">'
-            f"<summary>Context window · {message_count} message{'s' if message_count != 1 else ''}</summary>"
-            f'<pre class="json">{escape(_json(messages))}</pre>'
-            "</details>"
-        )
-        request_payload = _payload("Exact request payload", record.request) + context
-        events.append(
-            _event(
-                "api-call",
-                f"API call · round {index}",
-                f"Learner / Koan → LLM · {elapsed}",
-                request_payload,
-            )
-        )
-        response_payload = _payload("Exact response payload", record.response)
-        events.append(
-            _event(
-                "api-response",
-                f"API response · round {index}",
-                (
-                    f"LLM → Learner / Koan · {record.latency_ms:.1f} ms latency · "
-                    f"{record.input_tokens} in · {record.output_tokens} out · "
-                    f"{cumulative_tokens} cumulative"
-                ),
-                response_payload,
-            )
-        )
-        events.append(_tool_events(record.tool_executions))
 
-    empty = ""
-    if not events:
-        empty = '<p class="empty">No LLM interactions were recorded for this exercise.</p>'
+        # --- API call arrow (Learner → LLM) ---
+        detail_id += 1
+        call_id = f"detail-{detail_id}"
+        arrows_html.append(
+            f'<div class="arrow-row" data-detail="{call_id}">'
+            f'<div class="arrow-label">API call · round {index}</div>'
+            f'<div class="arrow-line arrow-right" data-detail="{call_id}"></div>'
+            f'<div class="arrow-meta">{elapsed}</div>'
+            f'</div>'
+        )
+        details_html.append(_detail_panel(
+            call_id,
+            f"API call · round {index}",
+            f"Learner / Koan → LLM · {elapsed}",
+            [
+                ("Exact request payload", record.request),
+                (f"Context window · {message_count} message{'s' if message_count != 1 else ''}", messages),
+            ],
+        ))
 
+        # --- Tool calls (if any) ---
+        for execution in record.tool_executions:
+            name = str(execution.get("name", "unknown tool"))
+            args = execution.get("arguments", {})
+            result = execution.get("result", "")
+            duration = float(execution.get("execution_ms", 0) or 0)
+
+            # Tool call arrow (LLM → Tools)
+            detail_id += 1
+            tc_id = f"detail-{detail_id}"
+            arrows_html.append(
+                f'<div class="arrow-row" data-detail="{tc_id}">'
+                f'<div class="arrow-label">Tool call · {escape(name)}</div>'
+                f'<div class="arrow-line arrow-right arrow-purple" data-detail="{tc_id}"></div>'
+                f'<div class="arrow-meta">{duration:.1f} ms execution</div>'
+                f'</div>'
+            )
+            details_html.append(_detail_panel(
+                tc_id,
+                f"Tool call · {name}",
+                f"LLM → Tools · {duration:.1f} ms execution",
+                [("Arguments", args)],
+            ))
+
+            # Tool result arrow (Tools → LLM)
+            detail_id += 1
+            tr_id = f"detail-{detail_id}"
+            arrows_html.append(
+                f'<div class="arrow-row" data-detail="{tr_id}">'
+                f'<div class="arrow-label">Tool result · {escape(name)}</div>'
+                f'<div class="arrow-line arrow-left arrow-green" data-detail="{tr_id}"></div>'
+                f'<div class="arrow-meta">{duration:.1f} ms execution</div>'
+                f'</div>'
+            )
+            details_html.append(_detail_panel(
+                tr_id,
+                f"Tool result · {name}",
+                f"Tools → LLM · {duration:.1f} ms execution",
+                [("Return value", result)],
+            ))
+
+        # --- API response arrow (LLM → Learner) ---
+        detail_id += 1
+        resp_id = f"detail-{detail_id}"
+        latency = record.latency_ms
+        token_info = f"{record.input_tokens} in · {record.output_tokens} out · {cumulative_tokens} cumulative"
+        arrows_html.append(
+            f'<div class="arrow-row" data-detail="{resp_id}">'
+            f'<div class="arrow-label">API response · round {index}</div>'
+            f'<div class="arrow-line arrow-left arrow-green" data-detail="{resp_id}"></div>'
+            f'<div class="arrow-meta">{latency:.1f} ms · {token_info}</div>'
+            f'</div>'
+        )
+        details_html.append(_detail_panel(
+            resp_id,
+            f"API response · round {index}",
+            f"LLM → Learner / Koan · {latency:.1f} ms latency · {token_info}",
+            [("Exact response payload", record.response)],
+        ))
+
+    arrows = "\n".join(arrows_html)
+    details = "\n".join(details_html)
+    return _skeleton("", arrows, details)
+
+
+def _detail_panel(detail_id: str, title: str, annotation: str, sections: list[tuple[str, Any]]) -> str:
+    """Build a hidden detail panel that shows when its arrow is clicked."""
+    payload_parts = []
+    for i, (section_title, value) in enumerate(sections):
+        is_context = "context" in section_title.lower()
+        detail_tag = "details" if is_context else "div"
+        summary_tag = f"<summary>{escape(section_title)}</summary>" if is_context else f"<h4>{escape(section_title)}</h4>"
+        payload_parts.append(
+            f'<{detail_tag} class="payload-section{" context" if is_context else ""}">'
+            f'{summary_tag}'
+            f'<pre class="json">{escape(_json(value))}</pre>'
+            f'</{detail_tag}>'
+        )
+    payloads = "".join(payload_parts)
+    return (
+        f'<div class="detail-panel" id="{detail_id}" style="display:none;">'
+        f'<div class="detail-header">'
+        f'<h3>{escape(title)}</h3>'
+        f'<p class="annotation">{escape(annotation)}</p>'
+        f'<button class="close-btn" onclick="closeDetail()">✕</button>'
+        f'</div>'
+        f'{payloads}'
+        f'</div>'
+    )
+
+
+def _skeleton(empty_html: str, arrows_html: str, details_html: str) -> str:
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -123,23 +172,180 @@ def render(trace: Sequence[InteractionRecord]) -> str:
 <title>llmSquire conversation trace</title>
 <style>
 :root {{ color-scheme: dark; --bg:#10141d; --panel:#19202d; --border:#344155; --text:#e8edf7; --muted:#9aa9c1; --blue:#68b5ff; --purple:#b792ff; --green:#63d9a5; --orange:#ffc36b; }}
-* {{ box-sizing:border-box; }} body {{ margin:0; background:var(--bg); color:var(--text); font:14px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }}
-main {{ max-width:1180px; margin:auto; padding:28px 18px 56px; }} h1 {{ margin:0 0 6px; font-size:24px; }} .subtitle,.annotation {{ color:var(--muted); margin:0; }}
-.lifelines {{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin:28px 0 18px; }} .lifeline {{ text-align:center; border:1px solid var(--border); background:var(--panel); border-radius:8px 8px 0 0; padding:10px; font-weight:bold; }} .lifeline::after {{ content:""; display:block; border-left:2px dashed var(--border); height:38px; margin:10px auto -48px; width:0; }}
-.event {{ display:grid; grid-template-columns:30% 70%; margin:14px 0; }} .arrow {{ position:relative; align-self:32px; height:2px; background:var(--blue); margin:18px 16px 0 0; }} .arrow::after {{ content:""; position:absolute; right:0; top:-5px; border-left:10px solid var(--blue); border-top:6px solid transparent; border-bottom:6px solid transparent; }} .api-response .arrow,.tool-result .arrow {{ background:var(--green); }} .api-response .arrow::after,.tool-result .arrow::after {{ border-left-color:var(--green); }} .tool-call .arrow {{ background:var(--purple); }} .tool-call .arrow::after {{ border-left-color:var(--purple); }}
-.event-card {{ border:1px solid var(--border); border-left:4px solid var(--blue); border-radius:7px; background:var(--panel); padding:12px; min-width:0; }} .api-response .event-card,.tool-result .event-card {{ border-left-color:var(--green); }} .tool-call .event-card {{ border-left-color:var(--purple); }} h3,h4 {{ margin:0 0 4px; }} h4 {{ color:var(--orange); font-size:12px; }} .payload {{ margin-top:10px; }} pre {{ margin:5px 0 0; white-space:pre-wrap; overflow-wrap:anywhere; background:#0c1018; border:1px solid #263246; border-radius:5px; padding:10px; color:#d9e7ff; }} details {{ margin-top:10px; }} summary {{ cursor:pointer; color:var(--orange); }} .empty {{ border:1px dashed var(--border); border-radius:7px; padding:18px; color:var(--muted); }}
-@media (max-width:650px) {{ .event {{ grid-template-columns:1fr; }} .arrow {{ display:none; }} .lifelines {{ font-size:11px; }} }}
+* {{ box-sizing:border-box; }}
+body {{ margin:0; background:var(--bg); color:var(--text); font:14px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }}
+main {{ max-width:960px; margin:auto; padding:28px 18px 56px; }}
+h1 {{ margin:0 0 6px; font-size:24px; }}
+.subtitle {{ color:var(--muted); margin:0 0 24px; }}
+
+/* Lifelines — three vertical lines that span the full diagram height */
+.diagram {{ position:relative; margin:20px 0 32px; }}
+.lifeline-headers {{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:0; margin-bottom:0; }}
+.lifeline-header {{
+  text-align:center; border:1px solid var(--border); background:var(--panel);
+  border-radius:8px 8px 0 0; padding:10px 8px; font-weight:bold; font-size:13px;
+}}
+.lifeline-header.left {{ border-right:none; border-radius:8px 0 0 0; }}
+.lifeline-header.center {{ border-left:none; border-right:none; }}
+.lifeline-header.right {{ border-left:none; border-radius:0 8px 0 0; }}
+
+/* The three vertical dashed lines */
+.lifelines-container {{ position:relative; padding-top:8px; }}
+.lifeline-line {{
+  position:absolute; top:0; bottom:0; width:0; border-left:2px dashed var(--border);
+}}
+.lifeline-line.left {{ left:16.67%; }}
+.lifeline-line.center {{ left:50%; }}
+.lifeline-line.right {{ left:83.33%; }}
+
+/* Arrow rows — each row is a horizontal arrow between lifelines */
+.arrow-row {{
+  position:relative; display:grid; grid-template-columns:1fr 1fr 1fr;
+  align-items:center; min-height:52px; padding:8px 0; cursor:pointer;
+}}
+.arrow-row:hover {{ background:rgba(104,181,255,0.06); }}
+
+/* The arrow line itself — spans from one lifeline to another */
+.arrow-line {{
+  position:relative; height:3px; border-radius:2px; margin:0 12px;
+  transition:opacity 0.15s;
+}}
+.arrow-row:hover .arrow-line {{ opacity:0.7; }}
+
+/* Right-pointing arrows (Learner→LLM, LLM→Tools) */
+.arrow-right {{
+  background:var(--blue); margin-left:16.67%; margin-right:0; width:33.33%;
+  grid-column:1; grid-column-start:1; grid-column-end:3;
+}}
+.arrow-right::after {{
+  content:""; position:absolute; right:-8px; top:-6px;
+  border-left:10px solid var(--blue); border-top:7px solid transparent; border-bottom:7px solid transparent;
+}}
+
+/* Left-pointing arrows (LLM→Learner, Tools→LLM) */
+.arrow-left {{
+  background:var(--green); margin-left:0; margin-right:16.67%; width:33.33%;
+  grid-column:2; grid-column-start:2; grid-column-end:4;
+}}
+.arrow-left::before {{
+  content:""; position:absolute; left:-8px; top:-6px;
+  border-right:10px solid var(--green); border-top:7px solid transparent; border-bottom:7px solid transparent;
+}}
+
+/* Purple arrows for tool calls */
+.arrow-purple {{ background:var(--purple); }}
+.arrow-purple::after {{ border-left-color:var(--purple) !important; }}
+.arrow-purple::before {{ border-right-color:var(--purple) !important; }}
+
+/* Green arrows for responses and tool results */
+.arrow-green {{ background:var(--green); }}
+.arrow-green::after {{ border-left-color:var(--green) !important; }}
+.arrow-green::before {{ border-right-color:var(--green) !important; }}
+
+/* Labels above arrows */
+.arrow-label {{
+  grid-column:1; grid-column-start:1; grid-column-end:4;
+  text-align:center; font-size:12px; font-weight:bold; color:var(--text);
+  padding-bottom:4px; position:relative; z-index:2; background:var(--bg);
+  display:inline-block; margin:0 auto; padding:2px 10px; border-radius:4px;
+  width:auto; align-self:end;
+}}
+.arrow-row {{
+  display:flex; flex-direction:column; align-items:center;
+}}
+.arrow-row .arrow-label {{
+  background:var(--bg); padding:2px 12px; border-radius:4px; margin-bottom:4px;
+}}
+.arrow-meta {{
+  font-size:11px; color:var(--muted); margin-top:2px; text-align:center;
+}}
+
+/* Detail panel — slides in from the right */
+.detail-panel {{
+  border:1px solid var(--border); border-left:4px solid var(--blue);
+  border-radius:8px; background:var(--panel); padding:16px; margin:12px 0;
+  animation:fadeIn 0.15s ease;
+}}
+@keyframes fadeIn {{ from {{ opacity:0; transform:translateY(-4px); }} to {{ opacity:1; transform:translateY(0); }} }}
+.detail-header {{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; position:relative; }}
+.detail-header h3 {{ margin:0 0 4px; font-size:16px; }}
+.detail-header .annotation {{ color:var(--muted); margin:0; font-size:12px; }}
+.close-btn {{
+  background:none; border:1px solid var(--border); color:var(--muted);
+  border-radius:4px; padding:2px 8px; cursor:pointer; font-size:14px; position:absolute; top:0; right:0;
+}}
+.close-btn:hover {{ color:var(--text); border-color:var(--text); }}
+.payload-section {{ margin-top:12px; }}
+.payload-section h4 {{ color:var(--orange); font-size:12px; margin:0 0 6px; }}
+.payload-section summary {{ cursor:pointer; color:var(--orange); font-size:12px; }}
+.payload-section summary:hover {{ color:var(--text); }}
+pre.json {{
+  margin:6px 0 0; white-space:pre-wrap; overflow-wrap:anywhere;
+  background:#0c1018; border:1px solid #263246; border-radius:5px; padding:10px;
+  color:#d9e7ff; font-size:12px; max-height:500px; overflow-y:auto;
+}}
+.empty {{ border:1px dashed var(--border); border-radius:7px; padding:18px; color:var(--muted); text-align:center; }}
+.hint {{ color:var(--muted); font-size:12px; text-align:center; margin:8px 0 0; }}
+
+@media (max-width:650px) {{
+  .lifeline-header {{ font-size:10px; padding:6px 4px; }}
+  .arrow-label {{ font-size:11px; }}
+}}
 </style>
 </head>
 <body><main>
-<h1>LLM conversation sequence</h1><p class="subtitle">Exact API payloads, context growth, timing, and token use.</p>
-<section class="lifelines" aria-label="Sequence diagram lifelines"><div class="lifeline">Learner / Koan</div><div class="lifeline">LLM</div><div class="lifeline">Tools</div></section>
-{empty}<section class="events">{''.join(events)}</section>
+<h1>LLM conversation sequence</h1>
+<p class="subtitle">Exact API payloads, context growth, timing, and token use. Click any arrow for details.</p>
+{empty_html}
+<div class="diagram">
+  <div class="lifeline-headers">
+    <div class="lifeline-header left">Learner / Koan</div>
+    <div class="lifeline-header center">LLM</div>
+    <div class="lifeline-header right">Tools</div>
+  </div>
+  <div class="lifelines-container">
+    <div class="lifeline-line left"></div>
+    <div class="lifeline-line center"></div>
+    <div class="lifeline-line right"></div>
+    {arrows_html}
+  </div>
+</div>
+<p class="hint">Click any arrow above to see the exact payload, context window, and token counts.</p>
+<div class="details-container">
+{details_html}
+</div>
 </main>
 <script>
-// Payloads are already escaped server-side. This small inline enhancer makes
-// JSON blocks keyboard-focusable without any external dependency.
-document.querySelectorAll('pre.json').forEach(function (block) {{ block.tabIndex = 0; }});
+(function() {{
+  // Click an arrow row to show its detail panel
+  var rows = document.querySelectorAll('.arrow-row');
+  var panels = document.querySelectorAll('.detail-panel');
+  var detailsContainer = document.querySelector('.details-container');
+
+  rows.forEach(function(row) {{
+    row.addEventListener('click', function() {{
+      var detailId = row.getAttribute('data-detail');
+      // Hide all panels
+      panels.forEach(function(p) {{ p.style.display = 'none'; }});
+      // Show the clicked one
+      var panel = document.getElementById(detailId);
+      if (panel) {{
+        panel.style.display = 'block';
+        panel.scrollIntoView({{ behavior:'smooth', block:'nearest' }});
+      }}
+    }});
+  }});
+
+  // Close button
+  window.closeDetail = function() {{
+    panels.forEach(function(p) {{ p.style.display = 'none'; }});
+  }};
+
+  // Keyboard: Escape closes any open panel
+  document.addEventListener('keydown', function(e) {{
+    if (e.key === 'Escape') closeDetail();
+  }});
+}})();
 </script>
 </body></html>"""
 
@@ -150,11 +356,7 @@ def write_diagram(
     test_name: str,
     output_dir: str | Path = "diagrams",
 ) -> Path:
-    """Write a timestamped diagram file and return its path.
-
-    Names are normalized for portable filenames while preserving the PRD naming
-    convention: ``{koan}_{test}_{YYYYMMDD_HHMMSS}.html``.
-    """
+    """Write a timestamped diagram file and return its path."""
     def filename_part(value: str) -> str:
         normalized = re.sub(r"[^A-Za-z0-9]+", "_", value).strip("_")
         return normalized or "unnamed"
@@ -167,6 +369,6 @@ def write_diagram(
     return path
 
 
-# Friendly aliases for callers that prefer a descriptive name.
+# Friendly aliases
 generate_html = render
 render_sequence_diagram = render
