@@ -131,8 +131,15 @@ class TestKoanStructure:
         test_methods = [m for m in dir(cls) if m.startswith("test_")]
         assert len(test_methods) >= 4
 
-    def test_about_skills_rtcc_exists_and_has_tests(self):
-        mod = _load_koan_module("about_skills_rtcc")
+    def test_about_skills_exists_and_has_tests(self):
+        mod = _load_koan_module("about_skills")
+        cls = self._find_koan_class(mod)
+        assert cls is not None
+        test_methods = [m for m in dir(cls) if m.startswith("test_")]
+        assert len(test_methods) >= 3
+
+    def test_about_rtcc_exists_and_has_tests(self):
+        mod = _load_koan_module("about_rtcc")
         cls = self._find_koan_class(mod)
         assert cls is not None
         test_methods = [m for m in dir(cls) if m.startswith("test_")]
@@ -255,11 +262,17 @@ class TestKoanAnswersWithFillMeIn:
             source = f.read()
         assert "_fill_" in source, "about_context_composition should have _fill_ blanks"
 
-    def test_skills_rtcc_has_fill_me_in_blanks(self):
-        mod = _load_koan_module("about_skills_rtcc")
+    def test_skills_has_fill_me_in_blanks(self):
+        mod = _load_koan_module("about_skills")
         with open(mod.__file__) as f:
             source = f.read()
-        assert "_fill_" in source, "about_skills_rtcc should have _fill_ blanks"
+        assert "_fill_" in source, "about_skills should have _fill_ blanks"
+
+    def test_rtcc_has_fill_me_in_blanks(self):
+        mod = _load_koan_module("about_rtcc")
+        with open(mod.__file__) as f:
+            source = f.read()
+        assert "_fill_" in source, "about_rtcc should have _fill_ blanks"
 
     def test_evaluation_criteria_has_fill_me_in_blanks(self):
         mod = _load_koan_module("about_evaluation_criteria")
@@ -333,9 +346,9 @@ class TestKoanAnswersWithFillMeIn:
 class TestPathToEnlightenment:
     """Verify the path is properly configured."""
 
-    def test_path_has_18_entries(self):
+    def test_path_has_19_entries(self):
         from llmsquire.path_to_enlightenment import PATH
-        assert len(PATH) == 18
+        assert len(PATH) == 19
 
     def test_path_starts_with_invocation(self):
         from llmsquire.path_to_enlightenment import PATH
