@@ -54,17 +54,17 @@ class AboutToolDefinitions(Koan):
         GREETING_TOOL = {
             "type": "function",
             "function": {
-                "name": _fill_,  # What should this tool be called?
+                "name": "greeting",  # What should this tool be called?
                 "description": "Generate a greeting for a given person name.",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "name": {
-                            "type": _fill_,  # What type is a name?
+                            "type": "string",  # What type is a name?
                             "description": "The name of the person to greet"
                         }
                     },
-                    "required": [_fill_]  # Which parameter is required?
+                    "required": ["name"]  # Which parameter is required?
                 }
             }
         }
@@ -87,7 +87,7 @@ class AboutToolDefinitions(Koan):
             "type": "function",
             "function": {
                 "name": "search",
-                "description": _fill_,  # Write a CLEAR description: "Search the web for information on a query"
+                "description": "Search the web for information on a query",  # Write a CLEAR description: "Search the web for information on a query"
                 "parameters": {
                     "type": "object",
                     "properties": {

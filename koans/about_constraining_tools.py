@@ -99,7 +99,7 @@ class AboutConstrainingTools(Koan):
             messages=[
                 {"role": "user", "content": "Calculate 2+2 and write the result to result.txt"}
             ],
-            tools=[_fill_]  # Give the model ONLY the calculator tool
+            tools=[CALCULATOR_TOOL]  # Give the model ONLY the calculator tool
         )
         # The model should call the calculator
         self.assert_tool_called(response, "calculator")
@@ -114,7 +114,7 @@ class AboutConstrainingTools(Koan):
             messages=[
                 {"role": "user", "content": "Summarize this article: 'The quick brown fox jumps over the lazy dog. It was a sunny day and the fox was hungry.'"}
             ],
-            tools=[_fill_]  # Give the model ONLY the search tool
+            tools=[SEARCH_TOOL]  # Give the model ONLY the search tool
         )
         # The model should NOT call summarize (it's not available)
         self.assert_tool_not_called(response, "summarize")
@@ -126,7 +126,7 @@ class AboutConstrainingTools(Koan):
             messages=[
                 {"role": "user", "content": "Summarize this article: 'The quick brown fox jumps over the lazy dog. It was a sunny day and the fox was hungry.'"}
             ],
-            tools=[_fill_]  # Give the model the summarize tool
+            tools=[SUMMARIZE_TOOL]  # Give the model the summarize tool
         )
         # The model should call summarize
         self.assert_tool_called(response, "summarize")
@@ -139,5 +139,5 @@ class AboutConstrainingTools(Koan):
 
         # This test just checks that you understand the concept.
         # Replace _fill_ with the correct answer.
-        answer = _fill_  # True or False: constraining tools is how you build specialized workers
+        answer = True  # True or False: constraining tools is how you build specialized workers
         self.assert_true(answer)

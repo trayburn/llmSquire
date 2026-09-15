@@ -24,19 +24,19 @@ class AboutSystemPrompts(Koan):
         # WITH a system prompt, the model adopts the persona
         response = llm.ask(
             messages=[
-                {"role": _fill_, "content": "You are a pirate. Speak like a pirate always."},
+                {"role": "system", "content": "You are a pirate. Speak like a pirate always."},
                 {"role": "user", "content": "Tell me about yourself."}
             ]
         )
         # The response should contain pirate-like language
         # Think about what words a pirate would use...
-        self.assert_match(_fill_, response.content)
+        self.assert_match("matey", response.content)
 
     def test_system_prompt_with_constraints(self):
         # You can add constraints to the system prompt
         response = llm.ask(
             messages=[
-                {"role": "system", "content": _fill_},
+                {"role": "system", "content": "You are a pirate who only speaks in 3-word sentences."},
                 # Hint: "You are a pirate who only speaks in 3-word sentences."
                 {"role": "user", "content": "Tell me about the sea."}
             ]

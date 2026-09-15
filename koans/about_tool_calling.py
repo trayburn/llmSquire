@@ -76,7 +76,7 @@ class AboutToolCalling(Koan):
         expression = args["expression"]
 
         # What should the tool name be?
-        self.assert_equal(_fill_, tool_name)
+        self.assert_equal("calculator", tool_name)
         # The expression should contain the numbers we asked about
         self.assert_match("15", expression)
         self.assert_match("27", expression)
@@ -99,7 +99,7 @@ class AboutToolCalling(Koan):
         tool_call_id = tool_call["id"]
 
         # Step 3: Execute the tool
-        result = _fill_  # Call the calculator function with the expression from tool_args
+        result = calculator(tool_args["expression"])  # Call the calculator function with the expression from tool_args
 
         # Step 4: Send the tool result back to the model
         # Build the messages array with the full conversation:
@@ -108,9 +108,11 @@ class AboutToolCalling(Koan):
         #   - The tool result message (role="tool", tool_call_id, content=result)
         second_response = llm.ask(
             messages=[
-                _fill_,  # The original user message (ask about 9 times 6)
-                _fill_,  # The assistant's response with the tool call
-                _fill_,  # The tool result: {"role": "tool", "tool_call_id": tool_call_id, "content": result}
+                {"role": "user", "content": "What is 9 times 6? Use the calculator tool."},  # The original user message (ask about 9 times 6)
+                {"role": "assistant", "content": first_response.content,
+                 "tool_calls": [{"id": tool_call_id, "type": "function",
+                                 "function": {"name": tool_name, "arguments": tool_call["arguments"]}}]},  # The assistant's response with the tool call
+                {"role": "tool", "tool_call_id": tool_call_id, "content": result},  # The tool result: {"role": "tool", "tool_call_id": tool_call_id, "content": result}
             ]
         )
 

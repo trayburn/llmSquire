@@ -126,12 +126,12 @@ class AboutContextComposition(Koan):
 
         # Build a synthetic conversation — no real tool calls happened!
         synthetic_messages = [
-            _fill_,  # A system prompt: "You are a helpful assistant that answers questions about files."
-            _fill_,  # A user message: "What does the notes.txt file contain?"
-            _fill_,  # A synthetic assistant tool_call: {"role": "assistant", "content": "",
+            {"role": "system", "content": "You are a helpful assistant that answers questions about files."},  # A system prompt: "You are a helpful assistant that answers questions about files."
+            {"role": "user", "content": "What does the notes.txt file contain?"},  # A user message: "What does the notes.txt file contain?"
+            {"role": "assistant", "content": "", "tool_calls": [{"id": "call_fake", "type": "function", "function": {"name": "read_file", "arguments": json.dumps({"path": "notes.txt"})}}]},  # A synthetic assistant tool_call: {"role": "assistant", "content": "",
                      #   "tool_calls": [{"id": "call_fake", "type": "function",
                      #     "function": {"name": "read_file", "arguments": '{"path": "notes.txt"}'}}]}
-            _fill_,  # A synthetic tool result: {"role": "tool", "tool_call_id": "call_fake",
+            {"role": "tool", "tool_call_id": "call_fake", "content": "Meeting notes: Buy milk. Call Bob. Submit report by Friday."},  # A synthetic tool result: {"role": "tool", "tool_call_id": "call_fake",
                      #   "content": "Meeting notes: Buy milk. Call Bob. Submit report by Friday."}
         ]
 
