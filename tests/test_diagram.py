@@ -61,6 +61,16 @@ def test_render_shows_payloads_context_timing_tokens_and_tool_round_trip():
     assert "&quot;test-model&quot;" in html
     assert "&lt;important&gt;" in html
     assert "&lt;contents&gt;" in html
+    # Every arrow has a direction-specific lane, so it can span the
+    # corresponding pair of lifelines rather than being centered by a grid.
+    assert not re.search(r"\.arrow-row\s*\{[^}]*display:grid", html)
+    for lane in (
+        "arrow-learner-llm",
+        "arrow-llm-learner",
+        "arrow-llm-tools",
+        "arrow-tools-llm",
+    ):
+        assert lane in html
 
 
 def test_render_accumulates_tokens_and_reports_elapsed_time_between_round_trips():

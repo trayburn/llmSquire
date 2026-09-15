@@ -56,7 +56,7 @@ def render(trace: Sequence[InteractionRecord]) -> str:
         detail_id += 1
         call_id = f"detail-{detail_id}"
         arrows_html.append(
-            f'<div class="arrow-row" data-detail="{call_id}">'
+            f'<div class="arrow-row arrow-learner-llm" data-detail="{call_id}">'
             f'<div class="arrow-label">API call · round {index}</div>'
             f'<div class="arrow-line arrow-right" data-detail="{call_id}"></div>'
             f'<div class="arrow-meta">{elapsed}</div>'
@@ -83,7 +83,7 @@ def render(trace: Sequence[InteractionRecord]) -> str:
             detail_id += 1
             tc_id = f"detail-{detail_id}"
             arrows_html.append(
-                f'<div class="arrow-row" data-detail="{tc_id}">'
+                f'<div class="arrow-row arrow-llm-tools" data-detail="{tc_id}">'
                 f'<div class="arrow-label">Tool call · {escape(name)}</div>'
                 f'<div class="arrow-line arrow-right arrow-purple" data-detail="{tc_id}"></div>'
                 f'<div class="arrow-meta">{duration:.1f} ms execution</div>'
@@ -100,7 +100,7 @@ def render(trace: Sequence[InteractionRecord]) -> str:
             detail_id += 1
             tr_id = f"detail-{detail_id}"
             arrows_html.append(
-                f'<div class="arrow-row" data-detail="{tr_id}">'
+                f'<div class="arrow-row arrow-tools-llm" data-detail="{tr_id}">'
                 f'<div class="arrow-label">Tool result · {escape(name)}</div>'
                 f'<div class="arrow-line arrow-left arrow-green" data-detail="{tr_id}"></div>'
                 f'<div class="arrow-meta">{duration:.1f} ms execution</div>'
@@ -119,7 +119,7 @@ def render(trace: Sequence[InteractionRecord]) -> str:
         latency = record.latency_ms
         token_info = f"{record.input_tokens} in · {record.output_tokens} out · {cumulative_tokens} cumulative"
         arrows_html.append(
-            f'<div class="arrow-row" data-detail="{resp_id}">'
+            f'<div class="arrow-row arrow-llm-learner" data-detail="{resp_id}">'
             f'<div class="arrow-label">API response · round {index}</div>'
             f'<div class="arrow-line arrow-left arrow-green" data-detail="{resp_id}"></div>'
             f'<div class="arrow-meta">{latency:.1f} ms · {token_info}</div>'
@@ -198,24 +198,24 @@ h1 {{ margin:0 0 6px; font-size:24px; }}
 .lifeline-line.center {{ left:50%; }}
 .lifeline-line.right {{ left:83.33%; }}
 
-/* Arrow rows — each row is a horizontal arrow between lifelines */
+/* Arrow rows use one flex-column layout. Their children are positioned in
+   explicit 33.33% lanes, matching the lifelines at 16.67%, 50%, and 83.33%. */
 .arrow-row {{
-  position:relative; display:grid; grid-template-columns:1fr 1fr 1fr;
-  align-items:center; min-height:52px; padding:8px 0; cursor:pointer;
+  position:relative; display:flex; flex-direction:column; align-items:flex-start;
+  min-height:52px; padding:8px 0; cursor:pointer;
 }}
 .arrow-row:hover {{ background:rgba(104,181,255,0.06); }}
 
-/* The arrow line itself — spans from one lifeline to another */
+/* The arrow line itself. The lane classes below place it between endpoints. */
 .arrow-line {{
-  position:relative; height:3px; border-radius:2px; margin:0 12px;
+  position:relative; height:3px; border-radius:2px; margin:0;
   transition:opacity 0.15s;
 }}
 .arrow-row:hover .arrow-line {{ opacity:0.7; }}
 
 /* Right-pointing arrows (Learner→LLM, LLM→Tools) */
 .arrow-right {{
-  background:var(--blue); margin-left:16.67%; margin-right:0; width:33.33%;
-  grid-column:1; grid-column-start:1; grid-column-end:3;
+  background:var(--blue);
 }}
 .arrow-right::after {{
   content:""; position:absolute; right:-8px; top:-6px;
@@ -224,8 +224,7 @@ h1 {{ margin:0 0 6px; font-size:24px; }}
 
 /* Left-pointing arrows (LLM→Learner, Tools→LLM) */
 .arrow-left {{
-  background:var(--green); margin-left:0; margin-right:16.67%; width:33.33%;
-  grid-column:2; grid-column-start:2; grid-column-end:4;
+  background:var(--green);
 }}
 .arrow-left::before {{
   content:""; position:absolute; left:-8px; top:-6px;
@@ -242,22 +241,32 @@ h1 {{ margin:0 0 6px; font-size:24px; }}
 .arrow-green::after {{ border-left-color:var(--green) !important; }}
 .arrow-green::before {{ border-right-color:var(--green) !important; }}
 
+/* Each lane includes its label, line, and metadata, all centered on the
+   same pair of lifelines. */
+.arrow-learner-llm > .arrow-label,
+.arrow-learner-llm > .arrow-line,
+.arrow-learner-llm > .arrow-meta,
+.arrow-llm-learner > .arrow-label,
+.arrow-llm-learner > .arrow-line,
+.arrow-llm-learner > .arrow-meta {{ left:16.67%; width:33.33%; }}
+.arrow-llm-tools > .arrow-label,
+.arrow-llm-tools > .arrow-line,
+.arrow-llm-tools > .arrow-meta,
+.arrow-tools-llm > .arrow-label,
+.arrow-tools-llm > .arrow-line,
+.arrow-tools-llm > .arrow-meta {{ left:50%; width:33.33%; }}
+
 /* Labels above arrows */
 .arrow-label {{
-  grid-column:1; grid-column-start:1; grid-column-end:4;
   text-align:center; font-size:12px; font-weight:bold; color:var(--text);
-  padding-bottom:4px; position:relative; z-index:2; background:var(--bg);
-  display:inline-block; margin:0 auto; padding:2px 10px; border-radius:4px;
-  width:auto; align-self:end;
-}}
-.arrow-row {{
-  display:flex; flex-direction:column; align-items:center;
+  position:relative; z-index:2; background:var(--bg);
+  margin:0; padding:2px 10px 4px; border-radius:4px;
 }}
 .arrow-row .arrow-label {{
-  background:var(--bg); padding:2px 12px; border-radius:4px; margin-bottom:4px;
+  background:var(--bg); padding:2px 12px 4px; border-radius:4px; margin-bottom:0;
 }}
 .arrow-meta {{
-  font-size:11px; color:var(--muted); margin-top:2px; text-align:center;
+  position:relative; font-size:11px; color:var(--muted); margin-top:2px; text-align:center;
 }}
 
 /* Detail panel — slides in from the right */
