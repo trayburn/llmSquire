@@ -186,7 +186,7 @@ class AboutEddCycle(Koan):
         # "Base your analysis ONLY on the file contents provided" (5).
         # One of them is dead weight — removing it won't cause any evaluation to fail.
 
-        load_bearing_count = _fill_  # How many of the 6 instructions are load-bearing?
+        load_bearing_count = 5  # How many of the 6 instructions are load-bearing?
 
         # At least 4 instructions should be load-bearing
         self.assert_true(
@@ -204,7 +204,7 @@ class AboutEddCycle(Koan):
         #
         # Replace _fill_ with True or False:
         # "EDD for a skill that uses tools requires real file fixtures on disk."
-        answer = _fill_  # True or False?
+        answer = False  # True or False?
         self.assert_true(
             not answer if answer is True else not answer,
             "EDD does NOT require real file fixtures. You can construct the "

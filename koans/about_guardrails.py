@@ -57,7 +57,7 @@ class AboutGuardrails(Koan):
         bad_output = "Finding: A"
         passes, reason = guardrail_research_output(bad_output)
         self.assert_true(
-            _fill_,  # Should the bad output pass or fail? (True = pass, False = fail)
+            not passes,  # Should the bad output pass or fail? (True = pass, False = fail)
             "Bad output with only 1 finding should fail the guardrail"
         )
 
@@ -89,7 +89,7 @@ class AboutGuardrails(Koan):
         pii_summary = "Contact Alice at alice@example.com for details."
         passes, reason = guardrail_summary(pii_summary)
         self.assert_true(
-            _fill_,  # Should output with PII pass or fail?
+            not passes,  # Should output with PII pass or fail?
             "Summary with email PII should fail the guardrail"
         )
 
@@ -121,7 +121,7 @@ class AboutGuardrails(Koan):
         bad_json = json.dumps({"project_name": "Phoenix"})
         passes, reason = guardrail_json_schema(bad_json, ["project_name", "deadline"])
         self.assert_true(
-            _fill_,  # Should JSON with a missing required field pass or fail?
+            not passes,  # Should JSON with a missing required field pass or fail?
             "JSON missing required field should fail the guardrail"
         )
 
@@ -130,7 +130,7 @@ class AboutGuardrails(Koan):
         # A guardrail that calls an LLM is not a guardrail — it is an adversarial agent.
         #
         # This is a reflection test. Replace _fill_ with the correct answer.
-        answer = _fill_  # True or False: "Guardrails should call an LLM to evaluate output quality"
+        answer = False  # True or False: "Guardrails should call an LLM to evaluate output quality"
         self.assert_true(
             not answer,  # answer should be False
             "Guardrails NEVER call an LLM. They are deterministic code only. "

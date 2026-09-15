@@ -59,7 +59,8 @@ class AboutEvaluationCriteria(Koan):
             elif "```" in text:
                 text = text.split("```")[1].split("```")[0].strip()
             try:
-                _fill_  # Parse the text as JSON and return True if it works
+                json.loads(text)
+                return True  # Parse the text as JSON and return True if it works
             except (json.JSONDecodeError, TypeError):
                 return False
 
@@ -84,7 +85,7 @@ class AboutEvaluationCriteria(Koan):
 
         # Check that every item has an "owner" key with a non-empty value
         for item in data:
-            self.assert_true(_fill_)  # Replace with: "owner" in item and item["owner"]
+            self.assert_true("owner" in item and item["owner"])  # Replace with: "owner" in item and item["owner"]
 
     def test_criterion_no_non_action_sentences(self):
         # Criterion 3: "No non-action sentences should be included as action items"
@@ -108,7 +109,7 @@ class AboutEvaluationCriteria(Koan):
         for item in data:
             task = item.get("task", "").lower()
             self.assert_true(
-                _fill_,  # Replace with: "budget" not in task
+                "budget" not in task,  # Replace with: "budget" not in task
                 f"Non-action sentence about budget was incorrectly included: {item}"
             )
 

@@ -83,7 +83,7 @@ class AboutAdversarialReview(Koan):
         #
         # Replace _fill_ with the key difference:
 
-        difference = _fill_  # Complete this sentence (as a string):
+        difference = "An adversarial agent actively tries to find errors and weaknesses while a verification agent checks whether expected criteria are satisfied."  # Complete this sentence (as a string):
         # "An adversarial agent ___ while a verification agent ___"
 
         self.assert_true(

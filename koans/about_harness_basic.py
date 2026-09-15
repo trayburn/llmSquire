@@ -62,11 +62,17 @@ class AboutHarnessBasic(Koan):
             research_output = step1_response.content
 
             # Step 2: Summarize (input = step 1 output)
-            step2_response = _fill_  # Call llm.ask with SUMMARIZE_SKILL and research_output
+            step2_response = llm.ask(messages=[
+                {"role": "system", "content": SUMMARIZE_SKILL},
+                {"role": "user", "content": research_output}
+            ])  # Call llm.ask with SUMMARIZE_SKILL and research_output
             summary_output = step2_response.content
 
             # Step 3: Email (input = step 2 output)
-            step3_response = _fill_  # Call llm.ask with EMAIL_SKILL and summary_output
+            step3_response = llm.ask(messages=[
+                {"role": "system", "content": EMAIL_SKILL},
+                {"role": "user", "content": summary_output}
+            ])  # Call llm.ask with EMAIL_SKILL and summary_output
             email_output = step3_response.content
 
             return email_output
@@ -139,7 +145,7 @@ class AboutHarnessBasic(Koan):
             # Guardrail
             passes, reason = guardrail_research_output(research_output)
             if not passes:
-                return _fill_  # What should the harness return when the guardrail fails?
+                return f"WORKFLOW HALTED: {reason}"  # What should the harness return when the guardrail fails?
                 # Return something like: f"WORKFLOW HALTED: {reason}"
 
             # Step 2 and 3 would follow...
@@ -165,6 +171,6 @@ class AboutHarnessBasic(Koan):
         # C) A diagram showing the workflow architecture
         #
         # Enter the letter of the correct answer:
-        answer = _fill_  # "A", "B", or "C"
+        answer = "B"  # "A", "B", or "C"
 
         self.assert_equal("B", answer)

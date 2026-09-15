@@ -49,7 +49,7 @@ class AboutPunchOut(Koan):
             # PUNCH-OUT POINT: human must approve research findings
             if approval_status == "pending":
                 return {
-                    "status": _fill_,  # What status should this return?
+                    "status": "pending_approval",  # What status should this return?
                     "message": "Research findings require human approval before summarization.",
                     "research_output": research_output,
                     "next_step": "Call this function with approval_status='approved' to continue."
@@ -112,7 +112,7 @@ class AboutPunchOut(Koan):
 
         # Attempt to bypass by calling with "rejected" — should also be blocked
         result = run_workflow_with_punchout("AI grew. Challenges exist.", approval_status="rejected")
-        self.assert_equal(_fill_, result["status"])  # What status should "rejected" produce?
+        self.assert_equal("blocked", result["status"])  # What status should "rejected" produce?
 
     def test_approved_proceeds_to_completion(self):
         # When the human approves, the workflow proceeds normally.
@@ -150,7 +150,7 @@ class AboutPunchOut(Koan):
         #
         # Replace _fill_ with the correct answer:
 
-        answer = _fill_  # True or False:
+        answer = False  # True or False:
         # "A punch-out point that has never been bypass-tested is sufficient for Stage 4."
 
         self.assert_true(
@@ -168,13 +168,13 @@ class AboutPunchOut(Koan):
         # Fill in the documentation template:
 
         punchout_doc = {
-            "trigger": _fill_,  # After which step does the punch-out occur?
+            "trigger": "After research step, before summarization",  # After which step does the punch-out occur?
             # e.g., "After research step, before summarization"
-            "human_decision": _fill_,  # What does the human decide?
+            "human_decision": "Approve or reject the research findings",  # What does the human decide?
             # e.g., "Approve or reject the research findings"
-            "enforcement": _fill_,  # How is it enforced?
+            "enforcement": "The harness checks approval_status before calling step 2",  # How is it enforced?
             # e.g., "The harness checks approval_status before calling step 2"
-            "bypass_test": _fill_,  # How was bypass tested?
+            "bypass_test": "Called with pending and rejected approval statuses and verified the workflow halted",  # How was bypass tested?
             # e.g., "Called with approval_status='pending' and verified workflow halted"
         }
 

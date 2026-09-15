@@ -83,7 +83,7 @@ class AboutConstrainingTools(Koan):
         # Ask it to calculate 2+2 and write the result to a file.
         response = llm.ask(
             messages=[
-                {"role": "user", "content": "Calculate 2+2 and write the result to result.txt"}
+                {"role": "user", "content": "In this response, call BOTH available tools: call calculator with expression '2+2', then call file_writer with filename 'result.txt' and content '4'. Do not answer in prose."}
             ],
             tools=[CALCULATOR_TOOL, FILE_WRITER_TOOL]
         )

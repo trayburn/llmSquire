@@ -97,7 +97,7 @@ class AboutHarnessFailure(Koan):
                     return output, None
                 attempts += 1
                 if attempts > max_retries:
-                    return _fill_, _fill_
+                    return None, f"{step_name} failed guardrail after {max_retries + 1} attempts: {reason}. Output: {output}"
                     # Return: None (no output) and an error message that includes:
                     # - Which step failed (step_name)
                     # - Which guardrail caught it
@@ -137,7 +137,7 @@ class AboutHarnessFailure(Koan):
                 "output_length": len(response.content)
             })
             if not passes:
-                result["error"] = _fill_  # Build an error message that traces to the research step
+                result["error"] = f"Step 'research' failed guardrail: {reason}"  # Build an error message that traces to the research step
                 return result
 
             # Step 2: Summarize

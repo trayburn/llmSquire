@@ -77,10 +77,10 @@ class AboutHarnessAudit(Koan):
             )
             audit_log.append({
                 "step": "summarize",
-                "model": _fill_,  # Extract from r2.usage
-                "input_tokens": _fill_,
-                "output_tokens": _fill_,
-                "latency_ms": _fill_,
+                "model": r2.usage.model,  # Extract from r2.usage
+                "input_tokens": r2.usage.input_tokens,
+                "output_tokens": r2.usage.output_tokens,
+                "latency_ms": r2.usage.latency_ms,
                 "status": "pass"
             })
 

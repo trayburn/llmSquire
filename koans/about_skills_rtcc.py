@@ -38,7 +38,7 @@ class AboutSkillsRtcc(Koan):
         # A clear role shapes the model's behavior and output style.
         response = llm.ask(
             messages=[
-                {"role": "system", "content": _fill_},
+                {"role": "system", "content": "You are an action item extractor. You identify tasks, owners, and deadlines from meeting notes."},
                 # Write a system prompt that defines the role:
                 # "You are an action item extractor. You identify tasks, owners, and deadlines from meeting notes."
                 {"role": "user", "content": "Meeting: We discussed the launch. Alice will send the email by Friday. Bob needs to update the docs."}
@@ -52,7 +52,10 @@ class AboutSkillsRtcc(Koan):
         # Constraints make output predictable and testable.
         response = llm.ask(
             messages=[
-                {"role": "system", "content": _fill_},
+                {"role": "system", "content": """You are an action item extractor.
+Extract action items from meeting notes.
+Input is meeting notes as plain text.
+Output must be valid JSON. Each action item has: task (string), owner (string), deadline (string or null). Return a JSON array and no other text."""},
                 # Write a COMPLETE RTCC skill:
                 # Role: "You are an action item extractor."
                 # Task: "Extract action items from meeting notes."
@@ -88,7 +91,10 @@ class AboutSkillsRtcc(Koan):
         # Fill in the system prompt with full RTCC structure.
         response = llm.ask(
             messages=[
-                {"role": "system", "content": _fill_},
+                {"role": "system", "content": """You are a technical summarizer.
+Summarize technical articles in exactly 3 bullet points.
+Input is a technical article as plain text.
+Output exactly 3 bullet points, each starting with '- '. Each bullet point must be one sentence. No introduction or conclusion."""},
                 # Write the full RTCC skill here:
                 # Role: "You are a technical summarizer."
                 # Task: "Summarize technical articles in exactly 3 bullet points."
