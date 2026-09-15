@@ -201,6 +201,7 @@ class AboutContextComposition(Koan):
             {"role": "tool", "tool_call_id": "fake_1", "content": file_a},
             {"role": "tool", "tool_call_id": "fake_2", "content": file_b},
             {"role": "tool", "tool_call_id": "fake_3", "content": file_c},
+            {"role": "user", "content": "Using the three file contents returned above, provide the requested brief project summary now."},
         ]
 
         response = llm.ask(messages=synthetic_messages)
