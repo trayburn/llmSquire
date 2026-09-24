@@ -11,12 +11,14 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
+from llmsquire.llm_client import LLMClient
+
 
 class _LLMProxy:
     """Delegates ask()/converse() to the current test's LLMClient instance."""
 
     def __init__(self):
-        self._client = None
+        self._client: Optional[LLMClient] = None
 
     def _resolve(self):
         if self._client is None:
